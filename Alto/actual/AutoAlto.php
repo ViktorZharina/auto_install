@@ -51,7 +51,7 @@ class AutoAlto
             'title' => 'Реквизиты',
             'login' => $this->aParams['login'],
             'password' => $this->aParams['password'],
-            'url' => substr($this->aParams['root_web'], 0, strlen($this->aParams['root_web']) - 1) ,
+            'url' => $this->aParams['root_web'],
             'to_email' => $this->aParams['to_email']
         );
     }

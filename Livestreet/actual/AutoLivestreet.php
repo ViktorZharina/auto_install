@@ -49,24 +49,6 @@ class AutoLivestreet
     
     public function install($params) {
         $this->aParams = $params;
-        $this->aParams['db_server'] = $params['host'];
-        $this->aParams['db_port'] = $params['port'];
-        $this->aParams['db_user'] = $params['username'];
-        $this->aParams['db_password'] = $params['password'];
-        $this->aParams['db_name'] = "db_{$this->aParams['domain']}";
-        
-        $this->aParams['root_web'] = "{$params['site']}/domains/{$this->aParams['domain']}";
-        $this->aParams['full_path_to_domain'] = $this->aParams['domain_dir'] . $this->aParams['domain'] . '/';
-        $this->aParams['install_dir'] = $this->aParams['full_path_to_domain'] . $params['cms_install_dir'];
-        $this->aParams['config_dir'] = $this->aParams['full_path_to_domain'] . '/application/config';
-        $this->aParams['login'] = "ls{$this->aParams['domain']}";
-        $this->aParams['password'] = md5(md5(rand(10000, 99999)));
-        
-        //$this->aParams['db_prefix']           = "p_ls{$this->aParams['domain']}_";
-        $this->aParams['db_prefix'] = "prefix_";
-        $this->aParams['db_engine'] = 'InnoDB';
-        $this->aParams['email'] = 'viktorz1986@gmail.com';
-        
         $this->ValidateStep();
         $this->SaveConfigStep();
         $this->DbStep();
@@ -121,34 +103,34 @@ class AutoLivestreet
             throw new Exception('config.local.php');
         }
         
-        $sTempDir = $this->aParams['full_path_to_domain'] . 'tmp';
+        $sTempDir = $this->aParams['path_to_account'] . 'tmp';
         
         if (!is_dir($sTempDir) or !is_writable($sTempDir)) {
             throw new Exception('validate_local_temp_dir');
         }
         
-        $sLogsDir = $this->aParams['full_path_to_domain'] . 'logs';
+        $sLogsDir = $this->aParams['path_to_account'] . 'logs';
         
         if (!is_dir($sLogsDir) or !is_writable($sLogsDir)) {
             throw new Exception('validate_local_logs');
         }
         
-        $sUploadsDir = $this->aParams['full_path_to_domain'] . 'uploads';
+        $sUploadsDir = $this->aParams['path_to_account'] . 'uploads';
         if (!is_dir($sUploadsDir) or !is_writable($sUploadsDir)) {
             throw new Exception('validate_local_uploads');
         }
         
-        $sTemplatesDir = $this->aParams['full_path_to_domain'] . 'templates/compiled';
+        $sTemplatesDir = $this->aParams['path_to_account'] . 'templates/compiled';
         if (!is_dir($sTemplatesDir) or !is_writable($sTemplatesDir)) {
             throw new Exception('validate_local_templates2');
         }
         
-        $sTemplatesCacheDir = $this->aParams['full_path_to_domain'] . 'templates/cache';
+        $sTemplatesCacheDir = $this->aParams['path_to_account'] . 'templates/cache';
         if (!is_dir($sTemplatesCacheDir) or !is_writable($sTemplatesCacheDir)) {
             throw new Exception('validate_local_templates_cache');
         }
         
-        $sPluginsDir = $this->aParams['full_path_to_domain'] . 'plugins';
+        $sPluginsDir = $this->aParams['path_to_account'] . 'plugins';
         if (!is_dir($sPluginsDir) or !is_writable($sPluginsDir)) {
             throw new Exception('validate_local_plugins');
         }
@@ -187,17 +169,21 @@ class AutoLivestreet
     //$this->dbh->exec("RESET MASTER, QUERY CACHE;");
     private function DbStep() {
         try {
-            $pdo = new PDO("mysql:host={$this->aParams['db_server']}", $this->aParams['db_user'], $this->aParams['db_password'], array(
+            $pdo = new PDO("mysql:host={$this->aParams['db_server']}", $this->aParams['db_root_user'], $this->aParams['db_root_password'], array(
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
             ));
-            //$pdo->exec("FLUSH HOSTS, DES_KEY_FILE, LOGS, PRIVILEGES, QUERY CACHE, USER_RESOURCES");
-            $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$this->aParams['db_name']}`");
-            $pdo->exec("SET NAMES utf8");
-            $pdo->exec("USE {$this->aParams['db_name']}");
             
-            //$sGeoQuery = str_replace('prefix_', $this->aParams['db_prefix'], $this->geoQuery);
-            //$sQ = str_replace('prefix_', $this->aParams['db_prefix'], $this->q);
-            $aQuery = $this->_loadQueries('geo_base.sql');
+            $pdo->query("CREATE DATABASE IF NOT EXISTS `{$this->aParams['db_name']}`");
+            $pdo->exec("GRANT USAGE ON *.* TO `{$this->aParams['db_user']}`@`{$this->aParams['db_server']}` identified by '{$this->aParams['db_password']}'");
+            $pdo->exec("GRANT ALL privileges on `{$this->aParams['db_name']}`.* to `{$this->aParams['db_user']}`@`{$this->aParams['db_server']}`");
+            $pdo = null;
+            
+            $pdo = new PDO("mysql:host={$this->aParams['db_server']};dbname={$this->aParams['db_name']}", $this->aParams['db_user'], $this->aParams['db_password'], array(
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+            ));
+            $pdo->exec("SET NAMES utf8");
+
+            $aQuery = $this->_loadQueries(__DIR__ . '/' . 'geo_base.sql');
             
             foreach ($aQuery as $sQuery) {
                 $sQuery = trim($sQuery);
@@ -207,7 +193,7 @@ class AutoLivestreet
                 }
             }
             
-            $aQuery = $this->_loadQueries('sql.sql');
+            $aQuery = $this->_loadQueries(__DIR__ . '/' . 'sql.sql');
             
             foreach ($aQuery as $sQuery) {
                 $sQuery = trim($sQuery);
@@ -294,8 +280,7 @@ class AutoLivestreet
         }
     }
 
-    private function _loadQueries($sFile) {
-        $sFile = __DIR__ .'/'. $sFile;
+    protected function _loadQueries($sFile) {
         $aQueries = array();
         $nCnt = 0;
         $sQuery = '';
@@ -305,6 +290,10 @@ class AutoLivestreet
         }
         
         foreach ($aLines as $sStr) {
+            if (isset($this->aParams['db_prefix'])) {
+                $sStr = str_replace('prefix_', $this->aParams['db_prefix'], $sStr);
+            }
+
             if (substr(trim($sStr) , -1) == ';') {
                 $sQuery.= $sStr;
                 $aQueries[$nCnt++] = $sQuery;
