@@ -125,8 +125,8 @@ class AutoAlto
             throw new Exception('error_local_config_invalid');
         }
         
-        $this->SaveConfig('path.root.web', $this->aParams['root_web'], $sLocalConfigFile);
-        $this->SaveConfig('path.root.url', $this->aParams['root_web'], $sLocalConfigFile);
+        $this->SaveConfig('path.root.web', $this->aParams['root_web'] . '/', $sLocalConfigFile);
+        $this->SaveConfig('path.root.url', $this->aParams['root_web']. '/', $sLocalConfigFile);
         $this->SaveConfig('path.root.server', $this->aParams['path_to_account'], $sLocalConfigFile);
         $this->SaveConfig('path.offset_request_url', 2, $sLocalConfigFile);
         $this->SaveConfig('module.security.hash', $this->aParams['password'] . rand(1, 100) , $sLocalConfigFile);
